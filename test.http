@@ -1,0 +1,24 @@
+POST  http://localhost:8080/submit_tuning_job
+content-type: application/json
+
+{
+  "source_model": "gemini-1.0-pro-002",
+  "train_dataset": "gs://cloud-samples-data/ai-platform/generative_ai/gemini-1_5/text/sft_train_data.jsonl",
+  "validation_dataset": "gs://cloud-samples-data/ai-platform/generative_ai/gemini-1_5/text/sft_validation_data.jsonl",
+  "tuned_model_display_name": "my-tuned-model",
+  "epochs": 1,
+  "learning_rate_multiplier": 0.8,
+  "adapter_size": 8 
+}
+
+### 
+
+GET http://localhost:8080/list_tuning_jobs
+
+###
+POST  http://localhost:8080/get_tuning_job
+content-type: application/json
+
+{
+    "job_id":"projects/801452371447/locations/us-central1/tuningJobs/3538540232808857600"
+}
