@@ -1,0 +1,5 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [ 'build', '-t', '$LOCATION-docker.pkg.dev/$PROJECT_ID/llamafactory/llama-factory:latest', '.' ]
+images:
+- '$LOCATION-docker.pkg.dev/$PROJECT_ID/llamafactory/llama-factory:latest'  

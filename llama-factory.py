@@ -1,7 +1,7 @@
 from google.cloud import aiplatform
  
 
-PROJECT_ID = "<your-project-id>"  # Replace with your project ID
+PROJECT_ID = "genai-380800"  # Replace with your project ID
 REGION = "us-central1"   
 STAGING_BUCKET = f"gs://{PROJECT_ID}-vertex-ai-staging"  
 CONTAINER_IMAGE_URI = "us-central1-docker.pkg.dev/{PROJECT_ID}/llamafactory/llama-factory:latest"   
@@ -14,29 +14,36 @@ def create_custom_job(
     staging_bucket: str,
     container_image_uri: str,
     hf_token: str,
+    replica_count: int = 1,  
+    machine_type: str = "a2-highgpu-8g", 
+    accelerator_type: str = "NVIDIA_TESLA_A100",  
+    accelerator_count: int = 8,     
+    llamafactory_yaml_path: str = "/gcs/shkhose-test-bucket-unique/llama3_lora_sft.yaml"
 ):
     aiplatform.init(project=project_id, location=region, staging_bucket=staging_bucket)
 
     worker_pool_specs = [
         {
             "machine_spec": {
-                "machine_type": "n1-standard-4",   
-                "accelerator_type": aiplatform.gapic.AcceleratorType.NVIDIA_TESLA_T4,   
-                "accelerator_count": 1,
+                "machine_type": machine_type,   
+                "accelerator_type":  getattr(aiplatform.gapic.AcceleratorType, accelerator_type),   
+                "accelerator_count": accelerator_count,
             },
-            "replica_count": REPLICA_COUNT,
+            "replica_count": replica_count,
             "container_spec": {
                 "image_uri": container_image_uri,
                 "env": [
-                    {"name": "HF_TOKEN", "value": hf_token},
-                    {"name": "HUGGING_FACE_HUB_TOKEN", "value": hf_token},
+                    {"name": "HF_TOKEN", "value": hf_token}, 
                     {"name": "PYTHONUNBUFFERED", "value": "0"},
-                    {"name": "WORLD_SIZE", "value": str(REPLICA_COUNT)},
+                    {"name": "WORLD_SIZE", "value": str(replica_count)},
+                    { "name": "FORCE_TORCHRUN","value":"1"},
+                    {"name": "NNODES", "value":"1"},
+                    {"name":"RANK","value" :"0"}
                 ],
                 "command": [
                     "bash",
                     "-c",
-                    f"python -m torchrun --nproc_per_node=1 --nnodes={REPLICA_COUNT} --node_rank=${{CLOUD_ML_NODE_ID}} --master_addr=${{VERTEX_JOB_NAME}}-pytorch-workers-0-0 --master_port=3389 /app/llama-factory/llamafactory-cli train /app/llama-factory/examples/train_lora/llama3_lora_sft.yaml",
+                    f"/usr/local/bin/llamafactory-cli train {llamafactory_yaml_path}",
                 ],
             },
         }
@@ -62,6 +69,7 @@ name = (
 response = client.access_secret_version(request={"name": name})
 hf_token = response.payload.data.decode("UTF-8")
 
+print(hf_token)
 
 # Create and run the custom job
 create_custom_job(
@@ -70,5 +78,7 @@ create_custom_job(
     staging_bucket=STAGING_BUCKET,
     container_image_uri=CONTAINER_IMAGE_URI,
     hf_token=hf_token,
+    replica_count=REPLICA_COUNT,
+
 )
 print("Custom job submitted successfully.")   
